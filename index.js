@@ -3,7 +3,9 @@ const logger = require('./config/logger')
 const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
+const path = require("path")
 dotenv.config();
+const AuthRoutes = require("./src/routes/auth")
 const port = process.env.PORT
 
 
@@ -11,10 +13,7 @@ app.use(corsConfig);
 app.use(express.json());
 app.use('/media', express.static(path.join(__dirname, 'public')));
 
-
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
+app.use([AuthRoutes])
 
 
 app.listen(port, () => {
