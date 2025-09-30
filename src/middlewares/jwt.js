@@ -1,11 +1,10 @@
-const { getRounds } = require("bcrypt");
 const jwt = require("jsonwebtoken")
 require('dotenv').config();
 
 
 
 
-const Get_Refresh_Token = ({ user, res }) => {
+const Get_Refresh_Token = ({ user }) => {
     try {
         const token = jwt.sign({ user }, process.env.REFRESH_TOKEN_SALT, { expiresIn: '7d' })
         return token
@@ -15,7 +14,7 @@ const Get_Refresh_Token = ({ user, res }) => {
 }
 
 
-const Get_Access_Token = ({ refresh_token, res }) => {
+const Get_Access_Token = ({ refresh_token }) => {
     try {
         const token = jwt.sign({ refresh_token }, process.env.ACCESS_TOKEN_SALT, { expiresIn: '1d' })
         return token
