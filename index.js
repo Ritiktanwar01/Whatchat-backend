@@ -1,7 +1,10 @@
+// node modules imports
 require('dotenv').config();
+const express = require('express');
+
+// server configuration imports
 const corsConfig = require('./config/corsConfig');
 const logger = require('./config/logger')
-const express = require('express');
 const {app,server,io} = require("./config/SocketConfig")
 const path = require("path")
 const port = process.env.PORT
@@ -12,9 +15,12 @@ const dbConn = require("./config/dbconfig")
 const AuthRoutes = require("./src/routes/auth")
 
 
-// Applying middlewares
+// connect with database
 
 dbConn()
+
+
+// Applying middlewares
 app.use(corsConfig);
 app.use(express.json());
 app.use('/media', express.static(path.join(__dirname, 'public')));
@@ -23,9 +29,12 @@ app.use('/media', express.static(path.join(__dirname, 'public')));
 // setting up the routes
 app.use([AuthRoutes])
 
+// handling socket io events in seprate file for better modularity
+
 require("./src/socket/SocketHandlers")(io);
 
 
+// logging server starts
 server.listen(port, () => {
     logger.info(`Chat app listening at http://localhost:${port}`);
 });
