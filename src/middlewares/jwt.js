@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken")
+const logger = require("../../config/logger")
 
 
 
@@ -8,15 +9,15 @@ const Get_Refresh_Token = ({ user }) => {
         const token = jwt.sign({ user }, process.env.REFRESH_TOKEN_SALT, { expiresIn: '7d' })
         return token
     } catch (error) {
-        console.log(error)
+    
         res.send({ status: 500, message: "something went wrong" })
     }
 }
 
 
-const Get_Access_Token = ({ refresh_token }) => {
+const Get_Access_Token = ({ refresh_token,username }) => {
     try {
-        const token = jwt.sign({ refresh_token }, process.env.ACCESS_TOKEN_SALT, { expiresIn: '1d' })
+        const token = jwt.sign({ refresh_token,username }, process.env.ACCESS_TOKEN_SALT, { expiresIn: '1d' })
         return token
     } catch (error) {
         res.send({ status: 500, message: "something went wrong" })
@@ -34,12 +35,31 @@ const Verify_Access_Token = (req, res, next) => {
 
     const token = authHeader.slice(7);
 
-    const decode = jwt.decode(token); // decode doesn't need a secret
+    const decode = jwt.verify(token, process.env.ACCESS_TOKEN_SALT); 
     req.user = decode;
     next();
   } catch (error) {
     console.error('Access token error:', error.message);
     res.status(401).json({ message: 'Invalid or expired token' });
+  }
+};
+
+
+const Verify_Access_Token_socket = (socket, next) => {
+  const token = socket.handshake.query.token;
+
+  if (!token) {
+   
+    return next(new Error('Authentication error: Token missing'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SALT);
+    socket.user = decoded; // Attach user info to socket
+    next(); // Allow connection
+  } catch (error) {
+    logger.error(error)
+    return next(new Error('Authentication error: Invalid token'));
   }
 };
 
@@ -70,7 +90,8 @@ module.exports = {
     Verify_Access_Token,
     Verify_Refresh_Token,
     Get_Access_Token,
-    Get_Refresh_Token
+    Get_Refresh_Token,
+    Verify_Access_Token_socket
 }
 
 

@@ -27,7 +27,7 @@ let Login = async (req, res) => {
 
     const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: user.id } })
 
-    const Access_token = Get_Access_Token(Refresh_token)
+    const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
 
     res.status(200).send({ status: 200, Refresh_token, Access_token });
 
@@ -46,11 +46,17 @@ let Signup = async (req, res) => {
 
     logger.info(`Signup attempt by ${ip}`)
 
-    const { username, password } = req.body;
+    const { username, password,mobile } = req.body;
 
-    const newUser = await User.create({ username, password });
+    const newUser = await User.create({ username, password,mobile });
 
-    res.status(200).send({ status: 201, user: newUser });
+    newUser.save()
+
+    const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: newUser.id } })
+
+    const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
+
+    res.status(200).send({ status: 201, Refresh_token,Access_token });
 
   } catch (error) {
     logger.error(error)
@@ -71,8 +77,10 @@ const Refresh = async (req, res) => {
     const user = await User.findOne({ username });
 
     if (user) {
-      const Refresh_token = Get_Refresh_Token({ user: { username, user_id } });
-      const Access_token = Get_Access_Token(Refresh_token);
+
+      const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: user.id } })
+
+      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
 
       return res.status(200).send({ status: 200, Refresh_token, Access_token })
     }

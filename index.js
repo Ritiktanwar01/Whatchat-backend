@@ -1,5 +1,5 @@
 // node modules imports
-require('dotenv').config();
+require('dotenv').config({debug:true});
 const express = require('express');
 
 // server configuration imports
