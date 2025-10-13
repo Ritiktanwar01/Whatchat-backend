@@ -2,40 +2,41 @@ const User = require("../models/auth")
 const bcrypt = require("bcrypt")
 const { Get_Refresh_Token, Get_Access_Token } = require("../middlewares/jwt")
 const logger = require("../../config/logger")
+const OTPService = require("../../utils/OTPService")
 
 
-let Login = async (req, res) => {
-  try {
+// let Login = async (req, res) => {
+//   try {
 
-    const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress || null;
+//     const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.socket?.remoteAddress || null;
 
-    logger.info(`login attempt by ${ip}`)
+//     logger.info(`login attempt by ${ip}`)
 
-    const { username, password } = req.body;
+//     const { username, password } = req.body;
 
-    const user = await User.findOne({ username });
+//     const user = await User.findOne({ username });
 
-    if (!user) {
-      return res.status(401).send({ message: 'Invalid credentials' });
-    }
+//     if (!user) {
+//       return res.status(401).send({ message: 'Invalid credentials' });
+//     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+//     const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch) {
-      return res.status(401).send({ message: 'Invalid credentials' });
-    }
+//     if (!isMatch) {
+//       return res.status(401).send({ message: 'Invalid credentials' });
+//     }
 
-    const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: user.id } })
+//     const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: user.id } })
 
-    const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
+//     const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
 
-    res.status(200).send({ status: 200, Refresh_token, Access_token });
+//     res.status(200).send({ status: 200, Refresh_token, Access_token });
 
-  } catch (error) {
-    logger.error(error)
-    res.status(500).send({ message: 'Login failed', error });
-  }
-};
+//   } catch (error) {
+//     logger.error(error)
+//     res.status(500).send({ message: 'Login failed', error });
+//   }
+// };
 
 
 let Signup = async (req, res) => {
@@ -46,9 +47,9 @@ let Signup = async (req, res) => {
 
     logger.info(`Signup attempt by ${ip}`)
 
-    const { username, password,mobile } = req.body;
+    const { username, password, mobile } = req.body;
 
-    const newUser = await User.create({ username, password,mobile });
+    const newUser = await User.create({ username, password, mobile });
 
     newUser.save()
 
@@ -56,7 +57,7 @@ let Signup = async (req, res) => {
 
     const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
 
-    res.status(200).send({ status: 201, Refresh_token,Access_token });
+    res.status(200).send({ status: 201, Refresh_token, Access_token });
 
   } catch (error) {
     logger.error(error)
@@ -92,10 +93,105 @@ const Refresh = async (req, res) => {
   }
 };
 
+const SendOTP = async (req, res) => {
+  try {
+
+    const { email } = req.body
+
+    const findDB = await User.findOne({ email })
+
+    if (findDB) {
+      res.status(409).send({ message: "email already registered" })
+    }
+
+    const otp = new OTPService()
+
+    await otp.setOTP("123456", email)
+
+    res.status(200).send({ message: "otp sent to email" })
+
+  } catch (error) {
+    logger.error(error)
+    res.status(500).send({ message: "something went wrong" })
+  }
+}
+
+const verifyOTP = async (req, res) => {
+  try {
+
+    const { email, OTP } = req.body
+
+    const otp = new OTPService()
+
+    const getOtp = await otp.getOTP(email)
+
+    if (!getOtp.found) {
+      res.send({ message: "OTP has expired please request a new one" })
+    }
+
+    if (OTP === getOtp.otp) {
+
+      await otp.remove(email)
+
+      const newUser = await User.create({ email })
+
+      newUser.save()
+
+      const Refresh_token = Get_Refresh_Token({ user: { username: email, user_id: newUser.id } })
+
+      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: email })
+
+      res.send({ Refresh_token, Access_token, message: "signup success", login: true })
+    }
+
+    res.status(401).send({ message: "invalid otp" })
+  } catch (error) {
+    logger.error(error)
+    res.status(500).send({ message: "something went wrong" })
+  }
+}
+
+const SetMobile = async (req, res) => {
+  try {
+
+    const { mobile } = req.body
+    const { username } = req.user
+
+    const updateUser = await User.updateOne({ email: username, mobile: mobile })
+
+    res.status(200).send({ message: "updated successfully" })
+
+  } catch (error) {
+    logger.error(error)
+    res.status(500).send({ message: "something went wrong" })
+  }
+}
+
+const SearchUser = async (req, res) => {
+  try {
+    const { contactList } = req.body
+
+    const registeredUsers = await User.find({
+      mobile: { $in: contactList }
+    },{ profilePicture: 1, _id: 0,email:1,mobile:1 })
+
+
+
+    res.status(200).send({ friendId: registeredUsers })
+  } catch (error) {
+    logger.error(error)
+    res.status(500).send({ message: "something went wrong" })
+  }
+}
+
 
 
 module.exports = {
-  Login,
+  // Login,
   Signup,
-  Refresh
+  Refresh,
+  SendOTP,
+  verifyOTP,
+  SetMobile,
+  SearchUser
 }

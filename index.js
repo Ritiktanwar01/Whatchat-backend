@@ -9,6 +9,7 @@ const {app,server,io} = require("./config/SocketConfig")
 const path = require("path")
 const port = process.env.PORT
 const dbConn = require("./config/dbconfig")
+const SendMailAuth = require("./config/mailauth")
 
 // importing routes
 
@@ -32,6 +33,7 @@ app.use([AuthRoutes])
 // handling socket io events in seprate file for better modularity
 
 require("./src/socket/SocketHandlers")(io);
+
 
 
 // logging server starts

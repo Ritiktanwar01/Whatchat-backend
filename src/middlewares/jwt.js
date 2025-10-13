@@ -46,7 +46,8 @@ const Verify_Access_Token = (req, res, next) => {
 
 
 const Verify_Access_Token_socket = (socket, next) => {
-  const token = socket.handshake.query.token;
+  const token = socket.handshake.auth.token;
+
 
   if (!token) {
    
