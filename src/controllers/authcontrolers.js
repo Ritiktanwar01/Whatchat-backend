@@ -108,7 +108,7 @@ const SendOTP = async (req, res) => {
 
     await otp.setOTP("123456", email)
 
-    res.status(200).send({ message: "otp sent to email" })
+    res.status(200).send({ message: "otp sent to email",status:200 })
 
   } catch (error) {
     logger.error(error)
@@ -118,38 +118,36 @@ const SendOTP = async (req, res) => {
 
 const verifyOTP = async (req, res) => {
   try {
-
-    const { email, OTP } = req.body
-
-    const otp = new OTPService()
-
-    const getOtp = await otp.getOTP(email)
+    const { email, OTP } = req.body;
+    const otp = new OTPService();
+    const getOtp = await otp.getOTP(email);
 
     if (!getOtp.found) {
-      res.send({ message: "OTP has expired please request a new one" })
+      return res.send({ message: "OTP has expired, please request a new one" });
     }
 
     if (OTP === getOtp.otp) {
+      await otp.remove(email);
 
-      await otp.remove(email)
+      const newUser = await User.create({ email });
+      const Refresh_token = Get_Refresh_Token({ user: { username: email, user_id: newUser.id } });
+      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: email });
 
-      const newUser = await User.create({ email })
-
-      newUser.save()
-
-      const Refresh_token = Get_Refresh_Token({ user: { username: email, user_id: newUser.id } })
-
-      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: email })
-
-      res.send({ Refresh_token, Access_token, message: "signup success", login: true })
+      return res.send({
+        Refresh_token,
+        Access_token,
+        message: "Signup success",
+        login: true,
+      });
     }
 
-    res.status(401).send({ message: "invalid otp" })
+    return res.status(401).send({ message: "Invalid OTP" });
   } catch (error) {
-    logger.error(error)
-    res.status(500).send({ message: "something went wrong" })
+    logger.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
   }
-}
+};
+
 
 const SetMobile = async (req, res) => {
   try {

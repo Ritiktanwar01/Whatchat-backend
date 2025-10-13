@@ -6,7 +6,7 @@ const {Verify_Refresh_Token,Verify_Access_Token} = require("../middlewares/jwt")
 
 
 // router.post('/login', Login)
-router.post('/signup', Signup)
+// router.post('/signup', Signup)
 router.post('/refresh',Verify_Refresh_Token,Refresh)
 router.post("/SendOtp",SendOTP)
 router.post("/login",verifyOTP)
