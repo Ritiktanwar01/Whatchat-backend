@@ -157,7 +157,7 @@ const SetMobile = async (req, res) => {
 
     const updateUser = await User.updateOne({ email: username, mobile: mobile })
 
-    res.status(200).send({ message: "updated successfully" })
+    res.status(200).send({ message: "updated successfully",success:true })
 
   } catch (error) {
     logger.error(error)
