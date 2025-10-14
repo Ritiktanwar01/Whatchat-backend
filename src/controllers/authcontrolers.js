@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt")
 const { Get_Refresh_Token, Get_Access_Token } = require("../middlewares/jwt")
 const logger = require("../../config/logger")
 const OTPService = require("../../utils/OTPService")
+const {generateOTP} = require("../../utils/GenarateOtp")
 
 
 // let Login = async (req, res) => {
@@ -106,7 +107,9 @@ const SendOTP = async (req, res) => {
 
     const otp = new OTPService()
 
-    await otp.setOTP("123456", email)
+    const OTPVal = generateOTP()
+
+    await otp.setOTP(OTPVal, email)
 
     res.status(200).send({ message: "otp sent to email",status:200 })
 
