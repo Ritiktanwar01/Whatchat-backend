@@ -22,6 +22,18 @@ This part of the app handles:
 
 ---
 
+## 🆕 Experimental Features
+
+### Peer-Synced Status Updates (Inspired by WhatsApp Status)
+- Users can post ephemeral photo/video/text updates visible to their contacts
+- Media is **not stored on the backend**—instead, it’s served directly from the user’s device
+- When both users are online, the server coordinates a **silent sync** of status media to the viewer’s device
+- Statuses auto-expire after 24 hours and are deleted locally
+- Acknowledgement-based syncing ensures privacy and bandwidth efficiency
+- Greatly reduces infrastructure cost while improving user control and security
+
+---
+
 ## 🔧 Planned Enhancements
 
 ### Real-Time Communication
