@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     },
     profilePicture: {
         type: String,
-        default: 'http://97.74.90.82:5500/media/uploads/profile/people.png'
+        default: '/media/uploads/profile/people.png'
     },
     createdAt: {
         type: Date,

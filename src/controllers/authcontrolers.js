@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt")
 const { Get_Refresh_Token, Get_Access_Token } = require("../middlewares/jwt")
 const logger = require("../../config/logger")
 const OTPService = require("../../utils/OTPService")
-const {generateOTP} = require("../../utils/GenarateOtp")
+const { generateOTP } = require("../../utils/GenarateOtp")
 
 
 // let Login = async (req, res) => {
@@ -99,19 +99,13 @@ const SendOTP = async (req, res) => {
 
     const { email } = req.body
 
-    const findDB = await User.findOne({ email })
-
-    if (findDB) {
-      res.status(409).send({ message: "email already registered" })
-    }
-
     const otp = new OTPService()
 
     const OTPVal = generateOTP()
 
     await otp.setOTP(OTPVal, email)
 
-    res.status(200).send({ message: "otp sent to email",status:200 })
+    res.status(200).send({ message: "otp sent to email", status: 200 })
 
   } catch (error) {
     logger.error(error)
@@ -122,34 +116,56 @@ const SendOTP = async (req, res) => {
 const verifyOTP = async (req, res) => {
   try {
     const { email, OTP } = req.body;
-    const otp = new OTPService();
-    const getOtp = await otp.getOTP(email);
+    const otpService = new OTPService();
+    const { found, otp } = await otpService.getOTP(email);
 
-    if (!getOtp.found) {
-      return res.send({ message: "OTP has expired, please request a new one" });
+    if (!found) {
+      return res.status(400).send({ message: "OTP has expired, please request a new one" });
     }
 
-    if (OTP === getOtp.otp) {
-      await otp.remove(email);
-
-      const newUser = await User.create({ email });
-      const Refresh_token = Get_Refresh_Token({ user: { username: email, user_id: newUser.id } });
-      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: email });
-
-      return res.send({
-        Refresh_token,
-        Access_token,
-        message: "Signup success",
-        login: true,
-      });
+    if (OTP !== otp) {
+      return res.status(401).send({ message: "Invalid OTP" });
     }
 
-    return res.status(401).send({ message: "Invalid OTP" });
+    await otpService.remove(email);
+
+    let user = await User.findOne({ email });
+
+    const wasNew = !user;
+
+    if (wasNew) {
+      user = await User.create({ email });
+    }
+
+    const Refresh_token = Get_Refresh_Token({
+      user: { username: email, user_id: user.id },
+    });
+
+    const Access_token = Get_Access_Token({
+      refresh_token: Refresh_token,
+      username: email,
+    });
+
+    const responsePayload = {
+      Refresh_token,
+      Access_token,
+      message: wasNew ? "Signup success" : "Login success",
+      login: true,
+    };
+
+    if (user.mobile) {
+      responsePayload.mobile = user.mobile;
+    }
+
+    return res.send(responsePayload);
   } catch (error) {
     logger.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
+
+
+
 
 
 const SetMobile = async (req, res) => {
@@ -158,9 +174,10 @@ const SetMobile = async (req, res) => {
     const { mobile } = req.body
     const { username } = req.user
 
-    const updateUser = await User.updateOne({ email: username, mobile: mobile })
+    const updateUser = await User.updateOne({ email: username }, { $set: { mobile } })
 
-    res.status(200).send({ message: "updated successfully",success:true })
+
+    res.status(200).send({ message: "updated successfully", success: true })
 
   } catch (error) {
     logger.error(error)
@@ -174,7 +191,7 @@ const SearchUser = async (req, res) => {
 
     const registeredUsers = await User.find({
       mobile: { $in: contactList }
-    },{ profilePicture: 1, _id: 0,email:1,mobile:1 })
+    }, { profilePicture: 1, _id: 0, email: 1, mobile: 1 })
 
 
 
