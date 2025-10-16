@@ -21,7 +21,7 @@ function SendMailAuth(user,OTP) {
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error('Error:', error);
+        logger.error('Error:', error);
       } else {
         logger.info('Email sent:', info.response);
       }
@@ -39,7 +39,7 @@ module.exports = class OTP {
             return true
         } catch (error) {
             logger.error(error)
-            console.log(error)
+            logger.log(error)
             return false
         }
     }

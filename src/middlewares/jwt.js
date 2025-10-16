@@ -39,7 +39,7 @@ const Verify_Access_Token = (req, res, next) => {
     req.user = decode;
     next();
   } catch (error) {
-    console.error('Access token error:', error.message);
+    logger.error('Access token error:', error.message);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
@@ -81,7 +81,7 @@ const Verify_Refresh_Token = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
-        console.error('Token verification failed:', error.message);
+        logger.error('Token verification failed:', error.message);
         res.status(401).json({ message: 'Invalid or expired token' });
     }
 };
