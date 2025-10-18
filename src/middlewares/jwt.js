@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken")
 const logger = require("../../config/logger")
+const User = require("../models/auth")
 
 
 
@@ -26,7 +27,7 @@ const Get_Access_Token = ({ refresh_token,username }) => {
 
 
 
-const Verify_Access_Token = (req, res, next) => {
+const Verify_Access_Token =  (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -36,6 +37,7 @@ const Verify_Access_Token = (req, res, next) => {
     const token = authHeader.slice(7);
 
     const decode = jwt.verify(token, process.env.ACCESS_TOKEN_SALT); 
+    
     req.user = decode;
     next();
   } catch (error) {
@@ -45,8 +47,8 @@ const Verify_Access_Token = (req, res, next) => {
 };
 
 
-const Verify_Access_Token_socket = (socket, next) => {
-  const token = socket.handshake.auth.token;
+const Verify_Access_Token_socket = async (socket, next) => {
+  const token = socket.handshake.query.token;
 
 
   if (!token) {
@@ -56,6 +58,8 @@ const Verify_Access_Token_socket = (socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SALT);
+    const getUser = await User.findOne({email:decoded.username},{createdAt:0,__v:0})
+    decoded.Sender = getUser
     socket.user = decoded; // Attach user info to socket
     next(); // Allow connection
   } catch (error) {

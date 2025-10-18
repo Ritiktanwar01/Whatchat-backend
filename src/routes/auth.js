@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router()
-const { Signup,Refresh,SendOTP,verifyOTP,SetMobile,SearchUser } = require("../controllers/authcontrolers")
+const { Signup,Refresh,SendOTP,verifyOTP,SetMobile,SearchUser,FCM_Update } = require("../controllers/authcontrolers")
 const {Verify_Refresh_Token,Verify_Access_Token} = require("../middlewares/jwt")
 
 
@@ -11,7 +11,8 @@ router.post('/refresh',Verify_Refresh_Token,Refresh)
 router.post("/SendOtp",SendOTP)
 router.post("/login",verifyOTP)
 router.post("/SetMobile",Verify_Access_Token,SetMobile)
-router.post("/searchfriend",SearchUser)
+router.post("/searchfriend",Verify_Access_Token,SearchUser)
+router.post('/fcm-token', Verify_Access_Token,FCM_Update)
 
 
 module.exports = router

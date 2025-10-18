@@ -79,6 +79,7 @@ web_modules/
 .env.production.local
 .env.local
 
+config/zappchat-ddf60-firebase-adminsdk-fbsvc-6604b52627.json
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

@@ -202,6 +202,32 @@ const SearchUser = async (req, res) => {
   }
 }
 
+ const FCM_Update = async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ success: false, message: 'FCM token missing' });
+  }
+
+  try {
+    const email = req.user.username; // Extracted from token
+    const user = await User.findOneAndUpdate(
+      { email },
+      { fcmToken: token },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ success: true, message: 'FCM token saved successfully' });
+  } catch (error) {
+    console.error('FCM token save error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+}
+
 
 
 module.exports = {
@@ -211,5 +237,6 @@ module.exports = {
   SendOTP,
   verifyOTP,
   SetMobile,
-  SearchUser
+  SearchUser,
+  FCM_Update
 }
