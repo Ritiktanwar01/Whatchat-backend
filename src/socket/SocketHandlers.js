@@ -38,7 +38,7 @@ module.exports = function (io) {
         }
 
         if (deliveredIds.length > 0) {
-          // await Message.deleteMany({ _id: { $in: deliveredIds } });
+          await Message.deleteMany({ _id: { $in: deliveredIds } });
         }
       }
     }, 5000); // ⏱ 5-second delay
