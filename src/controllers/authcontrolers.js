@@ -4,6 +4,7 @@ const { Get_Refresh_Token, Get_Access_Token } = require("../middlewares/jwt")
 const logger = require("../../config/logger")
 const OTPService = require("../../utils/OTPService")
 const { generateOTP } = require("../../utils/GenarateOtp")
+const path = require('path')
 
 
 // let Login = async (req, res) => {
@@ -229,6 +230,39 @@ const SearchUser = async (req, res) => {
 }
 
 
+const UpdateProfilePicture = async (req, res) => {
+  try {
+    const email = req.user.username; 
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ success: false, message: 'No image uploaded' });
+    }
+
+    const imageUrl = `/uploads/${file.filename}`; 
+
+    const updatedUser = await User.findOneAndUpdate(
+      { email },
+      { profilePicture: imageUrl },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture updated',
+      profilePicture: updatedUser.profilePicture,
+    });
+  } catch (error) {
+    logger.error('Profile picture update error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
 
 module.exports = {
   // Login,
@@ -238,5 +272,6 @@ module.exports = {
   verifyOTP,
   SetMobile,
   SearchUser,
-  FCM_Update
+  FCM_Update,
+  UpdateProfilePicture
 }
