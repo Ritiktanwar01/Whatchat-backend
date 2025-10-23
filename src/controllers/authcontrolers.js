@@ -75,17 +75,15 @@ const Refresh = async (req, res) => {
 
     logger.info(`token refresh request attempt by ${ip}`)
 
-    const { username, user_id } = req.user.user;
+    const { username, token } = req.user.user;
 
     const user = await User.findOne({ username });
 
     if (user) {
 
-      const Refresh_token = Get_Refresh_Token({ user: { username: username, user_id: user.id } })
+      const Access_token = Get_Access_Token({ refresh_token: token, username: username, success: true })
 
-      const Access_token = Get_Access_Token({ refresh_token: Refresh_token, username: username })
-
-      return res.status(200).send({ status: 200, Refresh_token, Access_token })
+      return res.status(200).send({ status: 200, Access_token })
     }
 
     return res.status(401).send({ status: 401, message: "Invalid refresh token" })
@@ -203,7 +201,7 @@ const SearchUser = async (req, res) => {
   }
 }
 
- const FCM_Update = async (req, res) => {
+const FCM_Update = async (req, res) => {
   const { token } = req.body;
 
   if (!token) {
@@ -232,14 +230,14 @@ const SearchUser = async (req, res) => {
 
 const UpdateProfilePicture = async (req, res) => {
   try {
-    const email = req.user.username; 
+    const email = req.user.username;
     const file = req.file;
 
     if (!file) {
       return res.status(400).json({ success: false, message: 'No image uploaded' });
     }
 
-    const imageUrl = `/uploads/${file.filename}`; 
+    const imageUrl = `/uploads/${file.filename}`;
 
     const updatedUser = await User.findOneAndUpdate(
       { email },
@@ -257,10 +255,23 @@ const UpdateProfilePicture = async (req, res) => {
       profilePicture: updatedUser.profilePicture,
     });
   } catch (error) {
-    logger.error('Profile picture update error:', error);
+    console.error('Profile picture update error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+
+const Get_User_Profile_Pic = async (req, res) => {
+  try {
+    const { username } = req.user
+    const pic = await User.findOne({ email: username }, { mobile: 0, fcmToken: 0, createdAt: 0 })
+    return res.status(200).send({ pic })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: 'Internal Server Error' });
+  }
+
+}
 
 
 
@@ -273,5 +284,6 @@ module.exports = {
   SetMobile,
   SearchUser,
   FCM_Update,
-  UpdateProfilePicture
+  UpdateProfilePicture,
+  Get_User_Profile_Pic
 }

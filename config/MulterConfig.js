@@ -1,23 +1,43 @@
 const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+
+
+const uploadDir = path.join(process.cwd(), 'public/uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
+
+
+const imageFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const ext = path.extname(file.originalname).toLowerCase();
+  const mime = file.mimetype;
+
+  if (allowedTypes.test(ext) && allowedTypes.test(mime)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const userId = req.body.userId || 'default'; // fallback if no ID
-    const uploadPath = path.join(__dirname, `../public/media/uploads/${userId}`);
-
-    // Ensure folder exists
-    fs.mkdirSync(uploadPath, { recursive: true });
-
-    cb(null, uploadPath);
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     const uniqueName = `${file.fieldname}-${Date.now()}${ext}`;
     cb(null, uniqueName);
   }
 });
 
-const upload = multer({ storage });
+
+const upload = multer({
+  storage,
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 
+  }
+});
+
 module.exports = upload;

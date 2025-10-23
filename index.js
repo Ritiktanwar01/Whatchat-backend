@@ -24,7 +24,7 @@ dbConn()
 // Applying middlewares
 app.use(corsConfig);
 app.use(express.json());
-app.use('/media', express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 
 // setting up the routes
@@ -40,3 +40,4 @@ require("./src/socket/SocketHandlers")(io);
 server.listen(port, () => {
     logger.info(`Chat app listening at http://localhost:${port}`);
 });
+

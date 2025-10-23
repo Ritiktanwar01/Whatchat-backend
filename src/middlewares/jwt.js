@@ -42,7 +42,7 @@ const Verify_Access_Token =  (req, res, next) => {
     next();
   } catch (error) {
     logger.error('Access token error:', error.message);
-    res.status(401).json({ message: 'Invalid or expired token' });
+    res.status(401).json({ message: 'Invalid or expired token',auth:false });
   }
 };
 
@@ -83,6 +83,7 @@ const Verify_Refresh_Token = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SALT);
 
         req.user = decoded;
+        req.token = token
         next();
     } catch (error) {
         logger.error('Token verification failed:', error.message);
