@@ -5,6 +5,7 @@ const {
   findUnsentMessages,
 } = require('../../utils/SaveOfflineMessages');
 const Message = require('../../src/models/messages');
+const User = require('../models/auth');
 
 module.exports = function (io) {
   io.use((socket, next) => Verify_Access_Token_socket(socket, next));
@@ -12,6 +13,17 @@ module.exports = function (io) {
   io.on('connection', async (socket) => {
     const user = socket.user.Sender;
     await redis.set(`user_socket:${user.email}`, socket.id);
+
+    // 🔔 Notify friends this user is online
+    const userDoc = await User.findOne({ email: user.email });
+    const friendEmails = userDoc?.friends || [];
+
+    for (const friendEmail of friendEmails) {
+      const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
+      if (friendSocketId) {
+        io.to(friendSocketId).emit('friend_online', { email: user.email });
+      }
+    }
 
     // ⏳ Delay unsent message delivery by 5 seconds
     setTimeout(async () => {
@@ -41,7 +53,7 @@ module.exports = function (io) {
           await Message.deleteMany({ _id: { $in: deliveredIds } });
         }
       }
-    }, 5000); // ⏱ 5-second delay
+    }, 5000);
 
     // 📤 Handle outgoing messages
     socket.on('send_message', async ({ message, to }) => {
@@ -69,8 +81,25 @@ module.exports = function (io) {
       }
     });
 
+    // 🟢 Respond to active friend check
+    socket.on('get_active_friends', async ({ friendEmails }) => {
+      const pipeline = redis.multi();
+      friendEmails.forEach(email => pipeline.get(`user_socket:${email}`));
+      const results = await pipeline.exec();
+      const active = friendEmails.filter((_, i) => results[i][1]);
+      socket.emit('active_friends_list', { active });
+    });
+
+    // 🔴 Notify friends on disconnect
     socket.on('disconnect', async () => {
       await redis.del(`user_socket:${user.email}`);
+
+      for (const friendEmail of friendEmails) {
+        const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
+        if (friendSocketId) {
+          io.to(friendSocketId).emit('friend_offline', { email: user.email });
+        }
+      }
     });
   });
 };
