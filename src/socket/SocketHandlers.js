@@ -6,6 +6,7 @@ const {
 } = require('../../utils/SaveOfflineMessages');
 const Message = require('../../src/models/messages');
 const User = require('../models/auth');
+const { sendNotification } = require("../notifications/SendNotifications");
 
 module.exports = function (io) {
   io.use((socket, next) => Verify_Access_Token_socket(socket, next));
@@ -14,18 +15,22 @@ module.exports = function (io) {
     const user = socket.user.Sender;
     await redis.set(`user_socket:${user.email}`, socket.id);
 
-    // 🔔 Notify friends this user is online
     const userDoc = await User.findOne({ email: user.email });
     const friendEmails = userDoc?.friends || [];
 
     for (const friendEmail of friendEmails) {
-      const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
-      if (friendSocketId) {
-        io.to(friendSocketId).emit('friend_online', { email: user.email });
+      const friendDoc = await User.findOne({ email: friendEmail });
+      const isMutual = friendDoc?.friends?.includes(user.email);
+
+      if (isMutual) {
+        const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
+        if (friendSocketId) {
+          io.to(friendSocketId).emit('friend_online', { email: user.email });
+        }
       }
     }
 
-    // ⏳ Delay unsent message delivery by 5 seconds
+ 
     setTimeout(async () => {
       const { found, messages } = await findUnsentMessages(user);
       const deliveredIds = [];
@@ -43,6 +48,7 @@ module.exports = function (io) {
               },
               message: msg.content,
             });
+
             deliveredIds.push(msg._id);
           } catch (error) {
             console.error('Failed to deliver message:', msg._id, error);
@@ -55,10 +61,14 @@ module.exports = function (io) {
       }
     }, 5000);
 
-    // 📤 Handle outgoing messages
     socket.on('send_message', async ({ message, to }) => {
       const receiverSocketId = await redis.get(`user_socket:${to}`);
       const timestamp = Date.now();
+
+      await Promise.all([
+        User.updateOne({ email: user.email }, { $addToSet: { friends: to } }),
+        User.updateOne({ email: to }, { $addToSet: { friends: user.email } })
+      ]);
 
       if (receiverSocketId) {
         try {
@@ -77,11 +87,30 @@ module.exports = function (io) {
           await saveOfflineMessage(user._id, to, message);
         }
       } else {
+      
         await saveOfflineMessage(user._id, to, message);
+
+       
+        try {
+          const [senderDoc, receiverDoc] = await Promise.all([
+            User.findOne({ email: user.email }),
+            User.findOne({ email: to }),
+          ]);
+
+          const deviceToken = receiverDoc?.fcmToken;
+          if (deviceToken) {
+            const title = message;
+            const body = `you have some messages`;
+            const imageUrl = `https://d461e55ff623.ngrok-free.app${senderDoc?.profilePicture || ''}`;
+
+            await sendNotification(deviceToken, title, body, imageUrl);
+          }
+        } catch (error) {
+          console.error('Notification failed:', error);
+        }
       }
     });
 
-    // 🟢 Respond to active friend check
     socket.on('get_active_friends', async ({ friendEmails }) => {
       const pipeline = redis.multi();
       friendEmails.forEach(email => pipeline.get(`user_socket:${email}`));
@@ -90,14 +119,18 @@ module.exports = function (io) {
       socket.emit('active_friends_list', { active });
     });
 
-    // 🔴 Notify friends on disconnect
     socket.on('disconnect', async () => {
       await redis.del(`user_socket:${user.email}`);
 
       for (const friendEmail of friendEmails) {
-        const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
-        if (friendSocketId) {
-          io.to(friendSocketId).emit('friend_offline', { email: user.email });
+        const friendDoc = await User.findOne({ email: friendEmail });
+        const isMutual = friendDoc?.friends?.includes(user.email);
+
+        if (isMutual) {
+          const friendSocketId = await redis.get(`user_socket:${friendEmail}`);
+          if (friendSocketId) {
+            io.to(friendSocketId).emit('friend_offline', { email: user.email });
+          }
         }
       }
     });
