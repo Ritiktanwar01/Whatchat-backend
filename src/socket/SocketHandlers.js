@@ -13,11 +13,13 @@ module.exports = function (io) {
 
   io.on('connection', async (socket) => {
     const user = socket.user.Sender;
+    socket.readyForMessages = false; 
     await redis.set(`user_socket:${user.email}`, socket.id);
 
     const userDoc = await User.findOne({ email: user.email });
     const friendEmails = userDoc?.friends || [];
 
+   
     for (const friendEmail of friendEmails) {
       const friendDoc = await User.findOne({ email: friendEmail });
       const isMutual = friendDoc?.friends?.includes(user.email);
@@ -30,8 +32,10 @@ module.exports = function (io) {
       }
     }
 
- 
-    setTimeout(async () => {
+
+    socket.on('client_ready', async () => {
+      socket.readyForMessages = true;
+
       const { found, messages } = await findUnsentMessages(user);
       const deliveredIds = [];
 
@@ -48,7 +52,6 @@ module.exports = function (io) {
               },
               message: msg.content,
             });
-
             deliveredIds.push(msg._id);
           } catch (error) {
             console.error('Failed to deliver message:', msg._id, error);
@@ -59,8 +62,9 @@ module.exports = function (io) {
           await Message.deleteMany({ _id: { $in: deliveredIds } });
         }
       }
-    }, 5000);
+    });
 
+  
     socket.on('send_message', async ({ message, to }) => {
       const receiverSocketId = await redis.get(`user_socket:${to}`);
       const timestamp = Date.now();
@@ -71,8 +75,9 @@ module.exports = function (io) {
       ]);
 
       if (receiverSocketId) {
-        try {
-          io.to(receiverSocketId).emit('receive_message', {
+        const receiverSocket = io.sockets.sockets.get(receiverSocketId);
+        if (receiverSocket?.readyForMessages) {
+          receiverSocket.emit('receive_message', {
             from: {
               email: user.email,
               name: user.name,
@@ -82,15 +87,12 @@ module.exports = function (io) {
             },
             message,
           });
-        } catch (error) {
-          console.error('Emit failed, saving offline:', error);
+        } else {
           await saveOfflineMessage(user._id, to, message);
         }
       } else {
-      
         await saveOfflineMessage(user._id, to, message);
 
-       
         try {
           const [senderDoc, receiverDoc] = await Promise.all([
             User.findOne({ email: user.email }),
@@ -100,8 +102,8 @@ module.exports = function (io) {
           const deviceToken = receiverDoc?.fcmToken;
           if (deviceToken) {
             const title = message;
-            const body = `you have some messages`;
-            const imageUrl = `https://d461e55ff623.ngrok-free.app${senderDoc?.profilePicture || ''}`;
+            const body = `You have some messages`;
+            const imageUrl = `https://yourdomain.com${senderDoc?.profilePicture || ''}`;
 
             await sendNotification(deviceToken, title, body, imageUrl);
           }
@@ -111,6 +113,7 @@ module.exports = function (io) {
       }
     });
 
+   
     socket.on('get_active_friends', async ({ friendEmails }) => {
       const pipeline = redis.multi();
       friendEmails.forEach(email => pipeline.get(`user_socket:${email}`));
@@ -118,6 +121,7 @@ module.exports = function (io) {
       const active = friendEmails.filter((_, i) => results[i][1]);
       socket.emit('active_friends_list', { active });
     });
+
 
     socket.on('disconnect', async () => {
       await redis.del(`user_socket:${user.email}`);
